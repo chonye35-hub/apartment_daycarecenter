@@ -1,4 +1,4 @@
-# final_interactive_app.py
+# final_app.py
 
 import streamlit as st
 import cv2
@@ -23,10 +23,11 @@ RAW_APT_FOLDER = 'data/raw_apt'
 RAW_CHILD_FOLDER = 'data/raw_child'
 
 # ===================================================================
-# 헬퍼 함수 (모든 기능 통합)
+# 헬퍼 함수 (Helper Functions)
 # ===================================================================
 
 def normalize_brightness(image_bgr: np.ndarray) -> np.ndarray:
+    """HSV 색상 공간을 사용하여 이미지의 밝기를 평탄화합니다."""
     image_hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(image_hsv)
     v_eq = cv2.equalizeHist(v)
@@ -34,6 +35,7 @@ def normalize_brightness(image_bgr: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(image_hsv_eq, cv2.COLOR_HSV2BGR)
 
 def extract_lab_palette(image_bgr: np.ndarray, mask: np.ndarray, n_colors: int = 5) -> np.ndarray:
+    """마스크 영역에서 LAB 색상 팔레트를 추출합니다."""
     pixels_in_mask = image_bgr[mask]
     if len(pixels_in_mask) == 0:
         raise ValueError("마스크 영역에 픽셀이 없습니다.")
@@ -43,6 +45,7 @@ def extract_lab_palette(image_bgr: np.ndarray, mask: np.ndarray, n_colors: int =
     return kmeans.cluster_centers_
 
 def create_palette_image(lab_colors: np.ndarray, block_size: tuple = (50, 50)) -> np.ndarray:
+    """LAB 색상 배열로 팔레트 이미지를 생성합니다."""
     bgr_colors = []
     for c in lab_colors:
         L, a, b = np.clip(c, 0, 255)
@@ -56,18 +59,23 @@ def create_palette_image(lab_colors: np.ndarray, block_size: tuple = (50, 50)) -
     return palette_img
 
 def calc_distance(lab1: np.ndarray, lab2: list) -> float:
+    """두 LAB 팔레트 간의 평균 유클리드 거리를 계산합니다."""
     return np.mean(np.linalg.norm(np.array(lab1) - np.array(lab2), axis=1))
 
-def get_top_similar_images(ref_lab: np.ndarray, all_data: list, top_n: int = 3, exclude: list = []) -> list:
-    """참조 팔레트와 가장 유사한 이미지들을 찾습니다. (코드2 로직 이식)"""
-    candidates = [entry for entry in all_data if re.search(r'_2.png$', entry['name']) and entry['raw'] not in exclude]
+def get_top_similar_images(ref_lab: np.ndarray, all_data: list, suffix: str = r'_2.png$', top_n: int = 3, exclude: list = []) -> list:
+    """참조 팔레트와 가장 유사한 이미지들을 찾습니다."""
+    candidates = [entry for entry in all_data if re.search(suffix, entry['name']) and entry['raw'] not in exclude]
     dists = [(calc_distance(ref_lab, entry['lab']), entry) for entry in candidates]
     dists.sort(key=lambda x: x[0])
     return dists[:top_n]
 
-# --- 데이터 및 모델 로딩 함수 (수정 없음) ---
+# ===================================================================
+# 데이터 및 모델 로딩 함수
+# ===================================================================
+
 @st.cache_resource
 def load_sam_predictor(model_path: str) -> SamPredictor:
+    """MobileSAM 모델을 로드하고 Predictor를 반환합니다. (클라우드 배포를 위해 다운로드 로직 유지)"""
     if not os.path.exists(model_path):
         with st.spinner("☁️ AI 모델을 다운로드 중입니다... (최초 1회)"):
             url = "https://github.com/ChaoningZhang/MobileSAM/raw/refs/heads/master/weights/mobile_sam.pt"
@@ -89,6 +97,7 @@ def load_sam_predictor(model_path: str) -> SamPredictor:
 
 @st.cache_data
 def load_all_json_data(json_path: str) -> dict:
+    """추천을 위한 JSON 데이터를 로드합니다."""
     with open(json_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
@@ -109,7 +118,7 @@ def main():
     if "box" not in st.session_state:
         st.session_state.box = None
     
-    # --- 1. 영역 선택 단계 ---
+    # 1. 영역 선택 단계
     if not st.session_state.results:
         st.header(f"분석 대상 이미지: `{IMAGE_PATH}`")
         if not os.path.exists(IMAGE_PATH):
@@ -143,13 +152,13 @@ def main():
                         "input_palette_img": create_palette_image(input_lab_palette),
                         "recommendations": first_recs,
                         "mask_display": cv2.addWeighted(image_np, 0.7, np.dstack([mask*0, mask*0, mask*255]).astype(np.uint8), 0.3, 0),
-                        "prev_round_raws": [e['raw'] for _, e in first_recs] # 다음 추천에서 제외할 목록
+                        "prev_round_raws": [e['raw'] for _, e in first_recs]
                     }
                     st.rerun()
             else:
                 st.warning("먼저 이미지 위에서 분석할 영역을 그려주세요.")
     
-    # --- 2. 결과 표시 및 재추천 단계 ---
+    # 2. 결과 표시 및 재추천 단계
     if st.session_state.results:
         st.header("✨ 분석 결과")
         
@@ -179,17 +188,14 @@ def main():
                         rec_image = Image.open(img_path)
                         st.image(rec_image, caption=f"유사도 점수: {dist:.2f}")
 
-                        # 🔥 여기가 바로 '재추천' 로직의 핵심입니다!
                         if st.button(f"이것과 비슷한 것 더 보기", key=f"rec_{i}"):
                             with st.spinner("연관 이미지를 다시 탐색합니다..."):
-                                # 클릭된 이미지의 팔레트를 새로운 기준으로 삼음
                                 new_ref_lab = entry['lab']
-                                # 직전 라운드에 보여줬던 이미지는 제외
                                 exclude_list = st.session_state.results["prev_round_raws"]
                                 
+                                # 재추천 시에는 모든 이미지를 대상으로 함 (suffix 기본값 사용)
                                 new_recs = get_top_similar_images(new_ref_lab, all_data, top_n=3, exclude=exclude_list)
                                 
-                                # session_state 업데이트
                                 st.session_state.results["recommendations"] = new_recs
                                 st.session_state.results["prev_round_raws"] = [e['raw'] for _, e in new_recs]
                                 st.rerun()
