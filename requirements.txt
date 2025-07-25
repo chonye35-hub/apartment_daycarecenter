@@ -1,0 +1,10 @@
+# requirements.txt (UTF-8로 저장)
+
+numpy<2.0
+streamlit==1.31.1
+streamlit-drawable-canvas==0.9.3
+torch==2.1.2
+torchvision==0.16.2
+opencv-python==4.8.1.78
+scikit-learn
+timm
