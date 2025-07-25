@@ -1,10 +1,12 @@
-# requirements.txt (UTF-8로 저장)
+# requirements.txt (클라우드 배포용 최종 버전)
+# 클라우드 서버(Python 3.13)가 스스로 최적의 버전을 찾도록 버전을 명시하지 않습니다.
 
-numpy<2.0
-streamlit==1.31.1
-streamlit-drawable-canvas==0.9.3
-torch==2.1.2
-torchvision==0.16.2
-opencv-python==4.8.1.78
+numpy
+streamlit
+streamlit-drawable-canvas
+torch
+torchvision
+opencv-python
 scikit-learn
 timm
+requests
