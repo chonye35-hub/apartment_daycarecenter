@@ -128,7 +128,6 @@ def main():
     
     # 1. 영역 선택 단계
     if not st.session_state.results:
-        st.header(f"AI 분석 샘플 이미지")
         if not os.path.exists(IMAGE_PATH):
             st.error(f"'{IMAGE_PATH}' 파일을 찾을 수 없습니다!")
             return
@@ -137,7 +136,7 @@ def main():
         image_np = np.array(image)
         predictor.set_image(image_np)
         
-        st.info("👇 아래 이미지에서 분석할 영역을 사각형으로 그려주세요.")
+        st.info("👇 다음 샘플 이미지의 아파트 영역을 사각형으로 그려주세요.")
         
         box = st_cropper(image, realtime_update=True, box_color='red', aspect_ratio=None, return_type='box')
         st.session_state.box = box
@@ -168,19 +167,19 @@ def main():
     
     # 2. 결과 표시 및 재추천 단계
     if st.session_state.results:
-        st.header("AI 컬러 분석 결과")
+        st.header("AI 분석 결과")
         
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("분석 영역")
+            st.subheader("AI가 인식한 영역")
             st.image(st.session_state.results["mask_display"])
         with col2:
             st.subheader("추출된 색상 팔레트")
             st.image(st.session_state.results["input_palette_img"], channels="BGR")
         
         st.write("---")
-        st.subheader("추천 어린이 시설 디자인")
-        st.info("추천된 이미지 아래의 버튼을 클릭하여 연관 추천을 계속 탐색할 수 있습니다.")
+        st.subheader("추천 디자인 레퍼런스")
+        st.info("샘플 이미지와 유사한 색상의 아파트 이미지입니다. 하단의 버튼을 클릭하여 추가 탐색이 가능합니다.")
 
         cols = st.columns(3)
         recs = st.session_state.results["recommendations"]
@@ -198,7 +197,7 @@ def main():
 
                         if 'bgr' in entry and entry['bgr']:
                             rec_palette_img = create_palette_image_from_bgr(entry['bgr'])
-                            st.image(rec_palette_img, channels="BGR", caption=f"{raw_name}의 팔레트")
+                            st.image(rec_palette_img, channels="BGR")
 
                         if st.button(f"비슷한 색깔의 어린이집 더보기", key=f"rec_{i}"):
                             with st.spinner("연관 이미지를 다시 탐색합니다..."):
