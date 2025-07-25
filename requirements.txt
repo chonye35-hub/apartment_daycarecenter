@@ -1,10 +1,9 @@
 numpy
 streamlit
-streamlit-drawable-canvas
 torch
 torchvision
 opencv-python
 scikit-learn
 timm
 requests
-git+https://github.com/ChaoningZhang/MobileSAM.git
+streamlit-cropper+https://github.com/ChaoningZhang/MobileSAM.git
