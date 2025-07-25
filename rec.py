@@ -58,6 +58,14 @@ def create_palette_image(lab_colors: np.ndarray, block_size: tuple = (50, 50)) -
         palette_img[:, i * block_size[0]:(i + 1) * 100] = color
     return palette_img
 
+def create_palette_image_from_bgr(bgr_colors: list, block_size: tuple = (50, 50)) -> np.ndarray:
+    """BGR 값 리스트로 직접 팔레트 이미지를 생성하는 새 함수"""
+    h, w = block_size[1], block_size[0] * len(bgr_colors)
+    palette_img = np.zeros((h, w, 3), dtype=np.uint8)
+    for i, color in enumerate(bgr_colors):
+        palette_img[:, i * block_size[0]:(i + 1) * block_size[0]] = color
+    return palette_img
+
 def calc_distance(lab1: np.ndarray, lab2: list) -> float:
     """두 LAB 팔레트 간의 평균 유클리드 거리를 계산합니다."""
     return np.mean(np.linalg.norm(np.array(lab1) - np.array(lab2), axis=1))
@@ -106,7 +114,7 @@ def load_all_json_data(json_path: str) -> dict:
 # ===================================================================
 def main():
     st.set_page_config(layout="wide")
-    st.title("🎨 AI 기반 이미지 탐색 및 추천 시스템")
+    st.title("어린이집 입면 팔레트 검색 AI")
 
     # 모델/데이터 로딩
     predictor = load_sam_predictor(MODEL_PATH)
@@ -120,7 +128,7 @@ def main():
     
     # 1. 영역 선택 단계
     if not st.session_state.results:
-        st.header(f"분석 대상 이미지: `{IMAGE_PATH}`")
+        st.header(f"AI 분석 샘플 이미지")
         if not os.path.exists(IMAGE_PATH):
             st.error(f"'{IMAGE_PATH}' 파일을 찾을 수 없습니다!")
             return
@@ -136,7 +144,7 @@ def main():
 
         if st.button("✅ 이 영역으로 분석 및 추천 실행", type="primary"):
             if st.session_state.box and st.session_state.box['width'] > 0:
-                with st.spinner("SAM 분석 및 1차 추천 이미지 검색 중..."):
+                with st.spinner("추천 이미지를 열심히 찾고 있어요!"):
                     input_box = np.array([box['left'], box['top'], box['left'] + box['width'], box['top'] + box['height']])
                     masks, _, _ = predictor.predict(box=input_box[None, :], multimask_output=False)
                     mask = masks[0]
@@ -160,18 +168,18 @@ def main():
     
     # 2. 결과 표시 및 재추천 단계
     if st.session_state.results:
-        st.header("✨ 분석 결과")
+        st.header("AI 컬러 분석 결과")
         
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("SAM이 인식한 영역")
+            st.subheader("분석 영역")
             st.image(st.session_state.results["mask_display"])
         with col2:
             st.subheader("추출된 색상 팔레트")
             st.image(st.session_state.results["input_palette_img"], channels="BGR")
         
         st.write("---")
-        st.subheader("유사 이미지 추천")
+        st.subheader("추천 어린이 시설 디자인")
         st.info("추천된 이미지 아래의 버튼을 클릭하여 연관 추천을 계속 탐색할 수 있습니다.")
 
         cols = st.columns(3)
@@ -186,16 +194,17 @@ def main():
                     
                     if os.path.exists(img_path):
                         rec_image = Image.open(img_path)
-                        st.image(rec_image, caption=f"유사도 점수: {dist:.2f}")
+                        st.image(rec_image)
 
-                        if st.button(f"이것과 비슷한 것 더 보기", key=f"rec_{i}"):
+                        if 'bgr' in entry and entry['bgr']:
+                            rec_palette_img = create_palette_image_from_bgr(entry['bgr'])
+                            st.image(rec_palette_img, channels="BGR", caption=f"{raw_name}의 팔레트")
+
+                        if st.button(f"비슷한 색깔의 어린이집 더보기", key=f"rec_{i}"):
                             with st.spinner("연관 이미지를 다시 탐색합니다..."):
                                 new_ref_lab = entry['lab']
                                 exclude_list = st.session_state.results["prev_round_raws"]
-                                
-                                # 재추천 시에는 모든 이미지를 대상으로 함 (suffix 기본값 사용)
                                 new_recs = get_top_similar_images(new_ref_lab, all_data, top_n=3, exclude=exclude_list)
-                                
                                 st.session_state.results["recommendations"] = new_recs
                                 st.session_state.results["prev_round_raws"] = [e['raw'] for _, e in new_recs]
                                 st.rerun()
