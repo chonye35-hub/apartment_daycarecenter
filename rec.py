@@ -165,7 +165,7 @@ def main():
                 st.session_state.results = {
                     "input_palette_img": create_palette_image(input_lab_palette),
                     "recommendations": get_top_similar_images(input_lab_palette, all_data),
-                    "mask_display": cv2.addWeighted(image_np, 0.7, np.dstack([mask*0, mask*0, mask*255]), 0.3, 0)
+                    "mask_display": cv2.addWeighted(image_np, 0.7, np.dstack([mask*0, mask*0, mask*255]).astype(np.uint8), 0.3, 0)
                 }
                 st.rerun() # 앱을 재실행하여 결과 화면 표시
         else:
