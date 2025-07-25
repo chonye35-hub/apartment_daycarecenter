@@ -1,3 +1,5 @@
+# requirements.txt (줄바꿈 수정 최종본)
+
 numpy
 streamlit
 torch
@@ -6,4 +8,5 @@ opencv-python
 scikit-learn
 timm
 requests
-streamlit-cropper+https://github.com/ChaoningZhang/MobileSAM.git
+streamlit-cropper
+git+https://github.com/ChaoningZhang/MobileSAM.git
